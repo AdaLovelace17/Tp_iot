@@ -13,7 +13,6 @@ This project implements an IoT-based Smart Grid Energy Management System with re
 5. [Running the Dashboard](#running-the-dashboard)
 6. [Running Sensors and Gateways](#running-sensors-and-gateways)
 7. [Project Structure](#project-structure)
-8. [Future Improvements](#future-improvements)
 
 ---
 
