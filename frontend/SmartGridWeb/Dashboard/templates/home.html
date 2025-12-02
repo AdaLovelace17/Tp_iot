@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Grid Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .update-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(67, 233, 123, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .card-header h2 {
+            font-size: 1.5em;
+            color: #2d3436;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .stat-box:hover { transform: translateY(-3px); }
+        .stat-box .label {
+            color: #636e72;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .stat-box .value {
+            color: #2d3436;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th {
+            background: linear-gradient(135deg, #ff6b9d, #feca57);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        th:first-child { border-radius: 8px 0 0 0; }
+        th:last-child { border-radius: 0 8px 0 0; }
+        td { padding: 12px; border-bottom: 1px solid #f0f0f0; color: #2d3436; }
+        tbody tr { transition: all 0.3s ease; }
+        tbody tr:hover { background-color: #f8f9fa; }
+        .button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-align: center;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .nav-link {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        .nav-link:hover {
+            background: rgba(255,255,255,0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+        .nav-link.ai {
+            background: rgba(255,255,255,0.3);
+            font-weight: 700;
+            box-shadow: 0 5px 15px rgba(255,255,255,0.3);
+        }
+        .nav-link.ai:hover {
+            background: rgba(255,255,255,0.45);
+            box-shadow: 0 8px 20px rgba(255,255,255,0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="update-indicator" id="updateIndicator">
+        🔄 Auto-updating every 5s
+    </div>
+
+    <div class="header">
+        <h1>⚡ Smart Grid Dashboard</h1>
+        <p>Real-time monitoring - 5 Regions</p>
+        <p style="font-size: 0.9em; opacity: 0.8;">Last Update: <span id="lastUpdate">-</span></p>
+        
+        <!-- Navigation Menu -->
+        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <a href="/houses/" class="nav-link">🏠 Houses</a>
+            <a href="/regions/" class="nav-link">🗺️ Regions</a>
+            <a href="/env/" class="nav-link">🌡️ Environment</a>
+            <a href="/circle/" class="nav-link">📊 Analytics</a>
+            <a href="/ai/" class="nav-link ai">🤖 AI Predictions</a>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <!-- AI Predictions Card - NEW! -->
+        <div class="card" style="grid-column: 1 / -1; background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+            <div class="card-header">
+                <h2 style="color: white;">🤖 AI Energy Predictions</h2>
+            </div>
+            <p style="margin-bottom: 20px; opacity: 0.9; font-size: 1.1em;">
+                Machine Learning-powered forecasting for smart energy management
+            </p>
+            <div class="stats-grid">
+                <div class="stat-box" style="background: rgba(255,255,255,0.2);">
+                    <div class="label" style="color: white;">Prediction Horizon</div>
+                    <div class="value" style="color: white;">24 Hours</div>
+                </div>
+                <div class="stat-box" style="background: rgba(255,255,255,0.2);">
+                    <div class="label" style="color: white;">Model Accuracy</div>
+                    <div class="value" style="color: white;">~90%</div>
+                </div>
+                <div class="stat-box" style="background: rgba(255,255,255,0.2);">
+                    <div class="label" style="color: white;">Supported Regions</div>
+                    <div class="value" style="color: white;">5</div>
+                </div>
+                <div class="stat-box" style="background: rgba(255,255,255,0.2);">
+                    <div class="label" style="color: white;">Features Used</div>
+                    <div class="value" style="color: white;">8</div>
+                </div>
+            </div>
+            <a href="/ai/" class="button" style="background: white; color: #667eea; font-size: 1.1em; margin-top: 10px;">
+                🔮 Open AI Predictions Dashboard →
+            </a>
+        </div>
+
+        <!-- Smart Meters Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🏠 Smart Meters</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">Total Houses</div>
+                    <div class="value" id="totalHouses">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Avg Power</div>
+                    <div class="value" id="avgPower">-</div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>House ID</th>
+                        <th>Power (kW)</th>
+                        <th>Voltage (V)</th>
+                    </tr>
+                </thead>
+                <tbody id="metersTable">
+                    <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+            <a href="/houses/" class="button">View All Houses →</a>
+        </div>
+
+        <!-- Feeders Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2>⚙️ Feeders</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">Active Feeders</div>
+                    <div class="value" id="activeFeeders">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Avg Current</div>
+                    <div class="value" id="avgCurrent">-</div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feeder ID</th>
+                        <th>Current (A)</th>
+                        <th>Voltage (V)</th>
+                    </tr>
+                </thead>
+                <tbody id="feedersTable">
+                    <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+            <a href="/regions/" class="button">View All Feeders →</a>
+        </div>
+
+        <!-- Environmental Sensors Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🌡️ Environmental Sensors</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">Temperature</div>
+                    <div class="value" id="avgTemp">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Humidity</div>
+                    <div class="value" id="avgHumidity">-</div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Region</th>
+                    </tr>
+                </thead>
+                <tbody id="sensorsTable">
+                    <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+            <a href="/env/" class="button">View All Sensors →</a>
+        </div>
+
+        <!-- Regions Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🗺️ Regions</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">Total Regions</div>
+                    <div class="value">5</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Total Power</div>
+                    <div class="value" id="totalPower">-</div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Region</th>
+                        <th>Power (kW)</th>
+                        <th>Houses</th>
+                    </tr>
+                </thead>
+                <tbody id="regionsTable">
+                    <tr><td colspan="3" style="text-align: center;">Loading...</td></tr>
+                </tbody>
+            </table>
+            <a href="/circle/" class="button">View Details →</a>
+        </div>
+    </div>
+
+    <script>
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/dashboard-summary/');
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+
+                    // Update Meters
+                    if (data.meters && data.meters.length > 0) {
+                        const metersTable = document.getElementById('metersTable');
+                        metersTable.innerHTML = data.meters.slice(0, 5).map(meter => `
+                            <tr>
+                                <td><strong>${meter.house_id}</strong></td>
+                                <td>${meter.power.toFixed(2)}</td>
+                                <td>${meter.voltage.toFixed(1)}</td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Update Feeders
+                    if (data.feeders && data.feeders.length > 0) {
+                        const feedersTable = document.getElementById('feedersTable');
+                        feedersTable.innerHTML = data.feeders.slice(0, 5).map(feeder => `
+                            <tr>
+                                <td><strong>${feeder.feeder_id}</strong></td>
+                                <td>${feeder.load_current.toFixed(2)}</td>
+                                <td>${feeder.load_voltage.toFixed(1)}</td>
+                            </tr>
+                        `).join('');
+                        
+                        const avgCurrent = data.feeders.reduce((sum, f) => sum + f.load_current, 0) / data.feeders.length;
+                        document.getElementById('avgCurrent').textContent = avgCurrent.toFixed(1) + ' A';
+                        document.getElementById('activeFeeders').textContent = data.feeders.length;
+                    }
+
+                    // Update Sensors
+                    if (data.env_sensors && data.env_sensors.length > 0) {
+                        const sensorsTable = document.getElementById('sensorsTable');
+                        sensorsTable.innerHTML = data.env_sensors.slice(0, 5).map(sensor => `
+                            <tr>
+                                <td><strong>${sensor.sensor_type}</strong></td>
+                                <td>${sensor.data.toFixed(2)}</td>
+                                <td>${sensor.timestamp.slice(0, 10)}</td>
+                            </tr>
+                        `).join('');
+
+                        const temps = data.env_sensors.filter(s => s.sensor_type === 'temperature');
+                        const hums = data.env_sensors.filter(s => s.sensor_type === 'humidity');
+                        
+                        if (temps.length > 0) {
+                            const avgTemp = temps.reduce((sum, s) => sum + s.data, 0) / temps.length;
+                            document.getElementById('avgTemp').textContent = avgTemp.toFixed(1) + '°C';
+                        }
+                        
+                        if (hums.length > 0) {
+                            const avgHum = hums.reduce((sum, s) => sum + s.data, 0) / hums.length;
+                            document.getElementById('avgHumidity').textContent = avgHum.toFixed(0) + '%';
+                        }
+                    }
+
+                    // Update Stats
+                    if (data.stats) {
+                        document.getElementById('totalHouses').textContent = data.stats.total_houses;
+                        document.getElementById('avgPower').textContent = data.stats.avg_power + ' kW';
+                    }
+
+                    // Update Regions
+                    updateRegions();
+                }
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        async function updateRegions() {
+            try {
+                const response = await fetch('/api/regions/stats/');
+                const data = await response.json();
+
+                if (data.success && data.regions.length > 0) {
+                    const regionsTable = document.getElementById('regionsTable');
+                    regionsTable.innerHTML = data.regions.slice(0, 5).map(region => `
+                        <tr>
+                            <td><strong>${region.region_name}</strong></td>
+                            <td>${region.total_power.toFixed(2)}</td>
+                            <td>${region.house_count}</td>
+                        </tr>
+                    `).join('');
+
+                    const totalPower = data.regions.reduce((sum, r) => sum + r.total_power, 0);
+                    document.getElementById('totalPower').textContent = totalPower.toFixed(1) + ' kW';
+                }
+            } catch (error) {
+                console.error('Error updating regions:', error);
+            }
+        }
+
+        // Initial update
+        updateDashboard();
+
+        // Auto-update every 5 seconds
+        setInterval(updateDashboard, 5000);
+    </script>
+</body>
+</html>

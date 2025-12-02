@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environmental Sensors - Smart Grid</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header { color: white; text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            margin-bottom: 25px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .stat-card h3 { color: #636e72; font-size: 0.9em; margin-bottom: 10px; }
+        .stat-card .value { color: #2d3436; font-size: 2.2em; font-weight: bold; margin-bottom: 8px; }
+        .stat-card .icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 3em;
+            opacity: 0.2;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        td { padding: 15px; border-bottom: 1px solid #f0f0f0; }
+        tbody tr:hover { background: #f8f9fa; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+        }
+        .chart-container { position: relative; height: 300px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌡️ Environmental Sensors</h1>
+        <p>Real-time environmental monitoring - Auto-refresh every 5s</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card" style="border-top: 4px solid #ff6b6b;">
+            <h3>Avg Temperature</h3>
+            <div class="value" id="avgTemp">-</div>
+            <div class="icon">🌡️</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid #4facfe;">
+            <h3>Avg Humidity</h3>
+            <div class="value" id="avgHumidity">-</div>
+            <div class="icon">💧</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid #43e97b;">
+            <h3>Avg Wind Speed</h3>
+            <div class="value" id="avgWind">-</div>
+            <div class="icon">🌬️</div>
+        </div>
+        <div class="stat-card" style="border-top: 4px solid #667eea;">
+            <h3>Active Sensors</h3>
+            <div class="value" id="totalSensors">-</div>
+            <div class="icon">📡</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 Sensors Data (Last 10)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Sensor Type</th>
+                    <th>Value</th>
+                    <th>Region</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="sensorsTableBody">
+                <tr><td colspan="4" style="text-align: center;">🔄 Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="charts-grid">
+        <div class="card">
+            <h2>🌡️ Temperature by Region</h2>
+            <p style="font-size: 0.9em; color: #636e72; margin-bottom: 10px;">
+                Average temperature readings per region in Celsius
+            </p>
+            <div class="chart-container">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>💧 Humidity by Region</h2>
+            <p style="font-size: 0.9em; color: #636e72; margin-bottom: 10px;">
+                Average humidity levels per region in percentage
+            </p>
+            <div class="chart-container">
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🌬️ Wind Speed by Region</h2>
+            <p style="font-size: 0.9em; color: #636e72; margin-bottom: 10px;">
+                Average wind speed measurements per region in m/s
+            </p>
+            <div class="chart-container">
+                <canvas id="windChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Sensors Distribution</h2>
+            <p style="font-size: 0.9em; color: #636e72; margin-bottom: 10px;">
+                Number of active sensors per region
+            </p>
+            <div class="chart-container">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const regionColors = [
+            'rgba(102, 126, 234, 0.8)',
+            'rgba(240, 147, 251, 0.8)',
+            'rgba(254, 202, 87, 0.8)',
+            'rgba(67, 233, 123, 0.8)',
+            'rgba(79, 172, 254, 0.8)'
+        ];
+
+        let tempChart, humidityChart, windChart, distributionChart;
+
+        function initCharts() {
+            tempChart = new Chart(document.getElementById('tempChart'), {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: [],
+                        backgroundColor: 'rgba(255, 107, 107, 0.7)',
+                        borderColor: '#ff6b6b',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+
+            humidityChart = new Chart(document.getElementById('humidityChart'), {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Humidity (%)',
+                        data: [],
+                        backgroundColor: 'rgba(79, 172, 254, 0.7)',
+                        borderColor: '#4facfe',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+
+            windChart = new Chart(document.getElementById('windChart'), {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Wind Speed (m/s)',
+                        data: [],
+                        backgroundColor: 'rgba(67, 233, 123, 0.7)',
+                        borderColor: '#43e97b',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            distributionChart = new Chart(document.getElementById('distributionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: regionColors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        async function updateSensors() {
+            try {
+                const response = await fetch('/api/env-sensors/latest/?limit=100');
+                const data = await response.json();
+
+                if (!data.success || !data.sensors || data.sensors.length === 0) {
+                    throw new Error('No sensor data');
+                }
+
+                // Update table - last 10 sensors
+                const tbody = document.getElementById('sensorsTableBody');
+                tbody.innerHTML = '';
+
+                data.sensors.slice(0, 10).forEach(sensor => {
+                    const icon = sensor.sensor_type === 'temperature' ? '🌡️' :
+                                 sensor.sensor_type === 'humidity' ? '💧' :
+                                 sensor.sensor_type === 'wind_speed' ? '🌬️' : '📊';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${icon} ${sensor.sensor_type}</td>
+                        <td><strong>${sensor.data.toFixed(2)}</strong> ${sensor.unit}</td>
+                        <td>${sensor.region}</td>
+                        <td>${sensor.timestamp.slice(0, 19)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Calculate averages and group by region
+                const temps = data.sensors.filter(s => s.sensor_type === 'temperature');
+                const hums = data.sensors.filter(s => s.sensor_type === 'humidity');
+                const winds = data.sensors.filter(s => s.sensor_type === 'wind_speed');
+
+                // Overall averages
+                if (temps.length > 0) {
+                    const avgTemp = temps.reduce((sum, s) => sum + s.data, 0) / temps.length;
+                    document.getElementById('avgTemp').textContent = avgTemp.toFixed(1) + '°C';
+                }
+
+                if (hums.length > 0) {
+                    const avgHum = hums.reduce((sum, s) => sum + s.data, 0) / hums.length;
+                    document.getElementById('avgHumidity').textContent = avgHum.toFixed(0) + '%';
+                }
+
+                if (winds.length > 0) {
+                    const avgWind = winds.reduce((sum, s) => sum + s.data, 0) / winds.length;
+                    document.getElementById('avgWind').textContent = avgWind.toFixed(1) + ' m/s';
+                }
+
+                document.getElementById('totalSensors').textContent = data.sensors.length;
+
+                // Group by region
+                const regionData = {};
+                data.sensors.forEach(sensor => {
+                    if (!regionData[sensor.region]) {
+                        regionData[sensor.region] = { temp: [], humidity: [], wind: [], count: 0 };
+                    }
+                    regionData[sensor.region].count++;
+                    if (sensor.sensor_type === 'temperature') regionData[sensor.region].temp.push(sensor.data);
+                    if (sensor.sensor_type === 'humidity') regionData[sensor.region].humidity.push(sensor.data);
+                    if (sensor.sensor_type === 'wind_speed') regionData[sensor.region].wind.push(sensor.data);
+                });
+
+                const regions = Object.keys(regionData);
+                
+                // Update charts
+                tempChart.data.labels = regions;
+                tempChart.data.datasets[0].data = regions.map(r => {
+                    const temps = regionData[r].temp;
+                    return temps.length > 0 ? temps.reduce((a,b) => a+b, 0) / temps.length : 0;
+                });
+                tempChart.update('none');
+
+                humidityChart.data.labels = regions;
+                humidityChart.data.datasets[0].data = regions.map(r => {
+                    const hums = regionData[r].humidity;
+                    return hums.length > 0 ? hums.reduce((a,b) => a+b, 0) / hums.length : 0;
+                });
+                humidityChart.update('none');
+
+                windChart.data.labels = regions;
+                windChart.data.datasets[0].data = regions.map(r => {
+                    const winds = regionData[r].wind;
+                    return winds.length > 0 ? winds.reduce((a,b) => a+b, 0) / winds.length : 0;
+                });
+                windChart.update('none');
+
+                distributionChart.data.labels = regions;
+                distributionChart.data.datasets[0].data = regions.map(r => regionData[r].count);
+                distributionChart.update('none');
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('sensorsTableBody').innerHTML = 
+                    `<tr><td colspan="4" style="text-align: center; color: red;">❌ Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            updateSensors();
+            setInterval(updateSensors, 5000);
+        });
+    </script>
+</body>
+</html>
